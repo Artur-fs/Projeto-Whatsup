@@ -1,52 +1,49 @@
-import time
+from flask import Flask, request, jsonify
 
-# 1. Configuração do "Cérebro" do Bot (Fácil de alterar para qualquer comércio)
+app = Flask(__name__)
 
+# --- MESMA CONFIGURAÇÃO DO BOT ANTERIOR ---
 config = {
-    "nome_loja": "Padaria do Bairro",
     "menu_principal": (
-        "Olá! Bem-vindo à Padaria do Bairro. 🥖\n"
-        "Digite o número da opção desejada:\n"
-        "1. Ver preços do dia\n"
-        "2. Horário de funcionamento\n"
-        "3. Localização\n"
-        "4. Falar com um humano"
+        "Olá! Bem-vindo à Padaria. 🥖\n"
+        "1. Preços\n2. Horário\n3. Localização"
     ),
     "opcoes": {
-        "1": "🥖 Pão Francês: R$ 12,90/kg\n🥐 Croissant: R$ 5,00/un\n☕ Café: R$ 4,00",
-        "2": "⏰ Aberto todos os dias, das 06:00 às 20:00.",
-        "3": "📍 Rua das Flores, nº 123 (Ao lado do mercado).",
-        "4": "Entendido! Vou chamar o João. Aguarde um instante... 🙋‍♂️"
+        "1": "🥖 Pão Francês: R$ 12,90/kg",
+        "2": "⏰ 06:00 às 20:00",
+        "3": "📍 Rua das Flores, 123"
     }
 }
 
-def processar_mensagem(texto):
+# --- A ROTA QUE RECEBE A MENSAGEM DO WHATSAPP ---
+@app.route("/webhook", methods=['POST'])
+def webhook():
+    # 1. Recebe os dados enviados pela API do WhatsApp
+    dados = request.get_json()
     
-    """Simula a recepção de uma mensagem e retorna a resposta"""
-    
-    texto = texto.strip()
-    
-    # Se o cliente digitar um número que está no nosso menu
-    
-    if texto in config["opcoes"]:
-        return config["opcoes"][texto]
-    
-    # Se for uma saudação ou qualquer outra coisa, mostra o menu principal
-    
-    else:
-        return config["menu_principal"]
+    # 2. Extrai o texto e o número de quem enviou (o formato varia por API)
+    # Aqui usamos nomes genéricos ['message'] e ['sender']
+    try:
+        msg_cliente = dados.get('message', '').strip()
+        telefone_cliente = dados.get('sender', '')
 
-# --- SIMULAÇÃO DE FUNCIONAMENTO ---
+        # 3. Lógica do Menu (Mesma do VS Code)
+        if msg_cliente in config["opcoes"]:
+            resposta = config["opcoes"][msg_cliente]
+        else:
+            resposta = config["menu_principal"]
 
-print("--- SISTEMA DE AUTOMAÇÃO INICIADO ---")
-print("Aguardando mensagens... (Pressione Ctrl+C para parar)\n")
+        # 4. LOG no terminal para você acompanhar
+        print(f"Mensagem de {telefone_cliente}: {msg_cliente}")
+        print(f"Resposta enviada: {resposta}")
 
-while True:
-    msg_cliente = input("Cliente diz: ") # Simula a mensagem chegando do WhatsApp
-    
-    print("Bot respondendo...")
-    time.sleep(0.5) # Simula um pequeno delay humano
-    
-    resposta = processar_mensagem(msg_cliente)
-    print(f"\n[WHATSAPP]: {resposta}\n")
-    print("-" * 30)
+        # 5. Retorna a resposta para a API enviar ao cliente
+        return jsonify({"status": "sucesso", "resposta": resposta}), 200
+
+    except Exception as e:
+        print(f"Erro: {e}")
+        return jsonify({"status": "erro"}), 500
+
+if __name__ == "__main__":
+    # Roda o servidor na porta 5000
+    app.run(host='0.0.0.0', port=5000)
