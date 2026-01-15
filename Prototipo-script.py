@@ -1,49 +1,41 @@
+import requests
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# --- MESMA CONFIGURAÇÃO DO BOT ANTERIOR ---
+# --- CONFIGURAÇÕES DA API (Você pega no painel da Z-API) ---
+INSTANCIA_ID = "SUA_INSTANCIA_ID"
+TOKEN_INSTANCIA = "SEU_TOKEN"
+URL_API = f"https://api.z-api.io/instances/{INSTANCIA_ID}/token/{TOKEN_INSTANCIA}/send-text"
+
+# --- LÓGICA DO MENU ---
 config = {
-    "menu_principal": (
-        "Olá! Bem-vindo à Padaria. 🥖\n"
-        "1. Preços\n2. Horário\n3. Localização"
-    ),
-    "opcoes": {
-        "1": "🥖 Pão Francês: R$ 12,90/kg",
-        "2": "⏰ 06:00 às 20:00",
-        "3": "📍 Rua das Flores, 123"
-    }
+    "1": "🥖 Pão Francês: R$ 12,90/kg",
+    "2": "⏰ 06:00 às 20:00",
+    "menu": "Olá! Digite 1 para Preços ou 2 para Horário."
 }
 
-# --- A ROTA QUE RECEBE A MENSAGEM DO WHATSAPP ---
+def enviar_whatsapp(numero, texto):
+    payload = {"phone": numero, "message": texto}
+    # Envia a resposta de volta para a API do WhatsApp
+    requests.post(URL_API, json=payload)
+
 @app.route("/webhook", methods=['POST'])
 def webhook():
-    # 1. Recebe os dados enviados pela API do WhatsApp
     dados = request.get_json()
     
-    # 2. Extrai o texto e o número de quem enviou (o formato varia por API)
-    # Aqui usamos nomes genéricos ['message'] e ['sender']
-    try:
-        msg_cliente = dados.get('message', '').strip()
-        telefone_cliente = dados.get('sender', '')
+    # Pegando os dados vindos da Z-API
+    # Nota: Verifique no painel da API os nomes exatos das chaves (Ex: 'text', 'phone')
+    msg_cliente = dados.get('text', {}).get('message', '')
+    telefone = dados.get('phone', '')
 
-        # 3. Lógica do Menu (Mesma do VS Code)
-        if msg_cliente in config["opcoes"]:
-            resposta = config["opcoes"][msg_cliente]
-        else:
-            resposta = config["menu_principal"]
+    if msg_cliente in config:
+        resposta = config[msg_cliente]
+    else:
+        resposta = config["menu"]
 
-        # 4. LOG no terminal para você acompanhar
-        print(f"Mensagem de {telefone_cliente}: {msg_cliente}")
-        print(f"Resposta enviada: {resposta}")
-
-        # 5. Retorna a resposta para a API enviar ao cliente
-        return jsonify({"status": "sucesso", "resposta": resposta}), 200
-
-    except Exception as e:
-        print(f"Erro: {e}")
-        return jsonify({"status": "erro"}), 500
+    enviar_whatsapp(telefone, resposta)
+    return jsonify({"status": "ok"}), 200
 
 if __name__ == "__main__":
-    # Roda o servidor na porta 5000
-    app.run(host='0.0.0.0', port=5000)
+    app.run(port=5000)
